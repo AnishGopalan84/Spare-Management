@@ -311,43 +311,148 @@ class InvoiceEntry(QWidget):
         # ----------------------------------------------------------
         # Spare selection row
         # ----------------------------------------------------------
+# ----------------------------------------------------------
+# Item Type
+# ----------------------------------------------------------
 
         entry_layout = QHBoxLayout()
 
-        self.spare = QComboBox()
-        self.spare.setEditable(True)
-        self.spare.setInsertPolicy(QComboBox.NoInsert)
-        self.spare.lineEdit().setPlaceholderText("Select Spare")
-        completer = self.spare.completer()
-        completer.setFilterMode(Qt.MatchContains)   
-        completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.item_type = QComboBox()
+
+        self.item_type.addItem(
+            "Spare",
+            "SPARE"
+        )
+
+        self.item_type.addItem(
+            "Service",
+            "SERVICE"
+        )
 
         entry_layout.addWidget(
-            QLabel("Spare:")
+            QLabel("Item Type:")
+        )
+
+        entry_layout.addWidget(
+            self.item_type
+        )
+
+        # ----------------------------------------------------------
+        # Spare selection
+        # ----------------------------------------------------------
+
+        self.spare_label = QLabel("Spare:")
+
+        self.spare = QComboBox()
+        self.spare.setEditable(True)
+        self.spare.setInsertPolicy(
+            QComboBox.NoInsert
+        )
+
+        self.spare.lineEdit().setPlaceholderText(
+            "Select Spare"
+        )
+
+        completer = self.spare.completer()
+
+        completer.setFilterMode(
+            Qt.MatchContains
+        )
+
+        completer.setCompletionMode(
+            QCompleter.PopupCompletion
+        )
+
+        entry_layout.addWidget(
+            self.spare_label
         )
 
         entry_layout.addWidget(
             self.spare
         )
+
         self.spare.currentIndexChanged.connect(
             self.spare_changed
-                )
+        )
 
+         # ----------------------------------------------------------
+                        # Invoice item table
+                        # ----------------------------------------------------------
+                
+        self.table = QTableWidget()
+                
+        self.table.setColumnCount(6)
+                
+        self.table.setHorizontalHeaderLabels([
+                            "Spare ID",
+                            "Part No.",
+                            "Description",
+                            "Qty",
+                            "Price",
+                            "Total"
+                        ])
+                
+        self.table.setColumnHidden(0, True)
+                
+        self.table.setEditTriggers(
+                            QTableWidget.DoubleClicked
+                        )
+                
+        items_layout.addWidget(
+                            self.table
+                        )
+                
+
+        # ----------------------------------------------------------
+        # Service Description
+        # ----------------------------------------------------------
+
+        self.service_description_label = QLabel(
+            "Description:"
+        )
+
+        self.service_description = QLineEdit()
+
+        self.service_description.setPlaceholderText(
+            "Service description"
+        )
+
+        self.service_description_label.setVisible(False)
+        self.service_description.setVisible(False)
+
+        entry_layout.addWidget(
+            self.service_description_label
+        )
+
+        entry_layout.addWidget(
+            self.service_description
+        )
+
+        # ----------------------------------------------------------
         # Quantity
+        # ----------------------------------------------------------
+
+        self.qty_label = QLabel("Qty:")
+
         self.qty = QSpinBox()
         self.qty.setMinimum(1)
         self.qty.setMaximum(999999)
         self.qty.setValue(1)
 
         entry_layout.addWidget(
-            QLabel("Qty:")
+            self.qty_label
         )
 
         entry_layout.addWidget(
             self.qty
         )
 
+        # ----------------------------------------------------------
         # Price
+        # ----------------------------------------------------------
+
+        self.price_label = QLabel("Price:")
+
         self.price = QDoubleSpinBox()
         self.price.setDecimals(3)
         self.price.setMinimum(0)
@@ -355,14 +460,17 @@ class InvoiceEntry(QWidget):
         self.price.setValue(0)
 
         entry_layout.addWidget(
-            QLabel("Price:")
+            self.price_label
         )
 
         entry_layout.addWidget(
             self.price
         )
 
-        # Add button
+        # ----------------------------------------------------------
+        # Add Item
+        # ----------------------------------------------------------
+
         self.add_item_btn = QPushButton(
             "Add Item"
         )
@@ -379,70 +487,10 @@ class InvoiceEntry(QWidget):
             entry_layout
         )
 
-        # ----------------------------------------------------------
-        # Invoice item table
-        # ----------------------------------------------------------
-
-        self.table = QTableWidget()
-
-        self.table.setColumnCount(6)
-
-        self.table.setHorizontalHeaderLabels([
-            "Spare ID",
-            "Part No.",
-            "Description",
-            "Qty",
-            "Price",
-            "Total"
-        ])
-
-        self.table.setColumnHidden(0, True)
-
-        self.table.setEditTriggers(
-            QTableWidget.DoubleClicked
+        self.item_type.currentIndexChanged.connect(
+            self.item_type_changed
         )
-
-        items_layout.addWidget(
-            self.table
-        )
-
-        # ==========================================================
-        # SERVICE CHARGE
-        # ==========================================================
-
-        service_layout = QHBoxLayout()
-
-        self.service_charge_check = QCheckBox(
-            "Service Charge"
-        )
-
-        self.service_charge = QDoubleSpinBox()
-        self.service_charge.setDecimals(3)
-        self.service_charge.setMaximum(999999999)
-        self.service_charge.setValue(0)
-        self.service_charge.setEnabled(False)
-
-        self.service_charge_check.toggled.connect(
-            self.service_charge_toggled
-        )
-
-        self.service_charge.valueChanged.connect(
-            self.calculate_total
-        )
-
-        service_layout.addWidget(
-            self.service_charge_check
-        )
-
-        service_layout.addWidget(
-            self.service_charge
-        )
-
-        service_layout.addStretch()
-
-        items_layout.addLayout(
-            service_layout
-        )
+ 
 
 #..................service charges ...............
 
@@ -610,6 +658,96 @@ class InvoiceEntry(QWidget):
 
     def add_item(self):
 
+        item_type = self.item_type.currentData()
+
+        # ======================================================
+        # SERVICE ITEM
+        # ======================================================
+
+        if item_type == "SERVICE":
+
+            description = (
+                self.service_description.text().strip()
+            )
+
+            price = self.price.value()
+
+            if not description:
+                QMessageBox.warning(
+                    self,
+                    "Invoice",
+                    "Please enter service description."
+                )
+                return
+
+            if price <= 0:
+                QMessageBox.warning(
+                    self,
+                    "Invoice",
+                    "Please enter service amount."
+                )
+                return
+
+            row = self.table.rowCount()
+
+            self.table.insertRow(row)
+
+            # Spare ID - blank
+            self.table.setItem(
+                row,
+                0,
+                QTableWidgetItem("")
+            )
+
+            # Part No. - blank
+            self.table.setItem(
+                row,
+                1,
+                QTableWidgetItem("")
+            )
+
+            # Description
+            self.table.setItem(
+                row,
+                2,
+                QTableWidgetItem(
+                    description
+                )
+            )
+
+            # Qty
+            self.table.setItem(
+                row,
+                3,
+                QTableWidgetItem("1")
+            )
+
+            # Price
+            self.table.setItem(
+                row,
+                4,
+                QTableWidgetItem(
+                    f"{price:.3f}"
+                )
+            )
+
+            # Total
+            self.table.setItem(
+                row,
+                5,
+                QTableWidgetItem(
+                    f"{price:.3f}"
+                )
+            )
+
+            self.calculate_total()
+
+            # Reset service fields
+            self.service_description.clear()
+            self.price.setValue(0)
+
+            return
+#old code
         spare_id = self.spare.currentData()
         if spare_id is None:
             QMessageBox.warning(
@@ -643,9 +781,14 @@ class InvoiceEntry(QWidget):
             for row in range(
                 self.table.rowCount()
             ):
+                id_item = self.table.item(row, 0)
+
+                if not id_item or not id_item.text().strip():
+                    continue
+
                 existing_spare_id = int(
-                    self.table.item(row, 0).text()
-                )
+                    id_item.text()
+)
                 if existing_spare_id == spare_id:
                     existing_qty += int(
                         float(
@@ -677,9 +820,15 @@ class InvoiceEntry(QWidget):
             for row in range(
                 self.table.rowCount()
             ):
+                id_item = self.table.item(row, 0)
+
+                if not id_item or not id_item.text().strip():
+                    continue
+
                 existing_spare_id = int(
-                    self.table.item(row, 0).text()
+                    id_item.text()
                 )
+                    
                 if existing_spare_id == spare_id:
                     new_qty = (
                         existing_qty + qty
@@ -770,22 +919,25 @@ class InvoiceEntry(QWidget):
             session.close()
 
     def calculate_total(self):
+
         grand_total = 0
+
         for row in range(
             self.table.rowCount()
         ):
+
             total_item = self.table.item(
                 row,
                 5
             )
+
             if total_item:
                 grand_total += float(
                     total_item.text()
                 )
-          # Add service charge
-        if self.service_charge_check.isChecked():
-            grand_total += self.service_charge.value()
+
         self.grand_total = grand_total
+
         self.grand_total_label.setText(
             f"{grand_total:.3f}"
         )
@@ -1010,15 +1162,22 @@ class InvoiceEntry(QWidget):
                 self.table.rowCount()
             ):
 
-                spare_id = int(
-                    self.table.item(
-                        row, 0
-                    ).text()
-                )
+                id_text = self.table.item(
+                    row,
+                    0
+                ).text().strip()
 
                 description = self.table.item(
-                    row, 2
+                    row,
+                    2
                 ).text()
+
+                if id_text == "":
+                    item_type = "SERVICE"
+                    spare_id = None
+                else:
+                    item_type = "SPARE"
+                    spare_id = int(id_text)
 
                 quantity = float(
                     self.table.item(
@@ -1040,7 +1199,7 @@ class InvoiceEntry(QWidget):
 
                 item = InvoiceItem(
                     invoice_id=invoice.id,
-                    item_type="SPARE",
+                    item_type=item_type,
                     spare_id=spare_id,
                     description=description,
                     quantity=quantity,
@@ -1110,10 +1269,44 @@ class InvoiceEntry(QWidget):
 
         finally:
 
-            session.close()
+            session.close()       
 
-        
 
-    def service_charge_toggled(self, checked):
-        self.service_charge.setEnabled(checked)
-        self.calculate_total()
+    def item_type_changed(self, index):
+
+        item_type = self.item_type.currentData()
+
+        is_service = (
+            item_type == "SERVICE"
+        )
+
+        # Spare controls
+        self.spare_label.setVisible(
+            not is_service
+        )
+
+        self.spare.setVisible(
+            not is_service
+        )
+
+        # Service controls
+        self.service_description_label.setVisible(
+            is_service
+        )
+
+        self.service_description.setVisible(
+            is_service
+        )
+
+        # Quantity
+        if is_service:
+            self.qty.setValue(1)
+            self.qty.setEnabled(False)
+        else:
+            self.qty.setEnabled(True)
+
+        # Price
+        if is_service:
+            self.price.setValue(0)
+        else:
+            self.price.setValue(0)
